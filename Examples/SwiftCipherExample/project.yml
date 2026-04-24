@@ -1,0 +1,36 @@
+name: SwiftCipherExample
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+packages:
+  SwiftCipher:
+    path: ../..
+targets:
+  SwiftCipherExample:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: SwiftCipher Example
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    dependencies:
+      - package: SwiftCipher
+        product: SwiftCipher
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.swift-cipher-notes
+        SWIFT_STRICT_CONCURRENCY: complete
