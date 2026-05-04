@@ -20,6 +20,20 @@ private struct CipherContainerModifier: ViewModifier {
 @available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *)
 extension View {
     public func cipherContainer(
+        for models: [any PersistentModel.Type],
+        encryptionKey: EncryptionKey,
+        name: String = "default",
+        storeURL: URL? = nil
+    ) -> some View {
+        cipherContainer(
+            for: Schema(models),
+            encryptionKey: encryptionKey,
+            name: name,
+            storeURL: storeURL
+        )
+    }
+
+    public func cipherContainer(
         for schema: Schema,
         encryptionKey: EncryptionKey,
         name: String = "default",

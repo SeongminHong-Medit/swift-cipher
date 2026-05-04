@@ -27,7 +27,7 @@ public final class CipherStore: DataStore {
                 appropriateFor: nil,
                 create: true
             )
-            path = appSupport.appendingPathComponent("\(configuration.name).sqlite").path
+            path = appSupport.appendingPathComponent("\(configuration.name).store").path
         }
 
         let connection = try Connection(.uri(path))

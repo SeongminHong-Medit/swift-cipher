@@ -3,6 +3,22 @@ import Foundation
 
 public enum CipherContainer {
     public static func makeContainer(
+        for models: [any PersistentModel.Type],
+        encryptionKey: EncryptionKey,
+        name: String = "default",
+        storeURL: URL? = nil,
+        migrationPlan: (any SchemaMigrationPlan.Type)? = nil
+    ) throws -> ModelContainer {
+        try makeContainer(
+            for: Schema(models),
+            encryptionKey: encryptionKey,
+            name: name,
+            storeURL: storeURL,
+            migrationPlan: migrationPlan
+        )
+    }
+
+    public static func makeContainer(
         for schema: Schema,
         encryptionKey: EncryptionKey,
         name: String = "default",

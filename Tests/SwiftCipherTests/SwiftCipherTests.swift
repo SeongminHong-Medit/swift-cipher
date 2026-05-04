@@ -53,6 +53,39 @@ struct CipherContainerTests {
             storeURL: url
         )
     }
+
+    @Test("makeContainer with model types and passphrase does not throw")
+    func containerCreationFromModelTypes() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        _ = try CipherContainer.makeContainer(
+            for: [TestRecord.self],
+            encryptionKey: .passphrase("test"),
+            name: "test-types",
+            storeURL: url
+        )
+    }
+}
+
+// MARK: - SwiftCipher utilities
+
+@Suite("SwiftCipher utilities")
+struct SwiftCipherUtilitiesTests {
+
+    @Test("defaultStoreURL returns path ending in .store")
+    func defaultStoreURLHasStoreExtension() throws {
+        let url = try SwiftCipher.defaultStoreURL()
+        #expect(url.pathExtension == "store")
+        #expect(url.lastPathComponent == "default.store")
+    }
+
+    @Test("defaultStoreURL with custom name returns correct filename")
+    func defaultStoreURLCustomName() throws {
+        let url = try SwiftCipher.defaultStoreURL(named: "mydb")
+        #expect(url.lastPathComponent == "mydb.store")
+    }
 }
 
 // MARK: - Wrong-key rejection
