@@ -60,6 +60,56 @@ public enum CipherKeychain {
         return passphrase
     }
 
+    // MARK: - Raw data API (for binary keys)
+
+    public static func store(rawKey: Data, for identifier: String) throws {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: identifier
+        ]
+
+        let status = SecItemAdd(
+            query.merging([kSecValueData: rawKey]) { _, new in new } as CFDictionary,
+            nil
+        )
+
+        if status == errSecDuplicateItem {
+            let updateStatus = SecItemUpdate(
+                query as CFDictionary,
+                [kSecValueData: rawKey] as CFDictionary
+            )
+            guard updateStatus == errSecSuccess else {
+                throw CipherError.keychainError(updateStatus)
+            }
+        } else if status != errSecSuccess {
+            throw CipherError.keychainError(status)
+        }
+    }
+
+    public static func retrieveRaw(for identifier: String) throws -> Data {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: identifier,
+            kSecReturnData: true,
+            kSecMatchLimit: kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess else {
+            throw CipherError.keychainError(status)
+        }
+
+        guard let data = result as? Data else {
+            throw CipherError.keychainError(errSecDecode)
+        }
+
+        return data
+    }
+
     public static func delete(for identifier: String) throws {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,

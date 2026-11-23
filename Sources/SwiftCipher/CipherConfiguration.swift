@@ -12,7 +12,7 @@ public struct CipherConfiguration: DataStoreConfiguration {
     public var name: String
     public var schema: Schema?
     public var encryptionKey: EncryptionKey
-    /// The store file. When `nil`, the file is `<name>.sqlite` in Application Support,
+    /// The store file. When `nil`, the file is `<name>.store` in Application Support,
     /// inside the `appGroup` container when one is set.
     public var storeURL: URL?
     /// An App Group identifier, so app extensions can open the same store.
@@ -50,7 +50,7 @@ public struct CipherConfiguration: DataStoreConfiguration {
             base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         }
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base.appendingPathComponent("\(name).sqlite")
+        return base.appendingPathComponent("\(name).store")
     }
 
     public func validate() throws {

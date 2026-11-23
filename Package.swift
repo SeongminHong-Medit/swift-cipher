@@ -17,7 +17,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/skiptools/swift-sqlcipher.git", from: "1.4.0")
+        .package(url: "https://github.com/skiptools/swift-sqlcipher.git", exact: "1.7.1")
     ],
     targets: [
         .target(

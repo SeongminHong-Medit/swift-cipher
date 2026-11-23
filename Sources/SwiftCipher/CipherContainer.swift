@@ -3,6 +3,25 @@ import SQLiteDB
 import Foundation
 
 public enum CipherContainer {
+    /// A `ModelContainer` backed by one encrypted store holding `models`.
+    public static func makeContainer(
+        for models: [any PersistentModel.Type],
+        encryptionKey: EncryptionKey? = nil,
+        name: String = "default",
+        storeURL: URL? = nil,
+        appGroup: String? = nil,
+        migrationPlan: (any SchemaMigrationPlan.Type)? = nil
+    ) throws -> ModelContainer {
+        try makeContainer(
+            for: Schema(models),
+            encryptionKey: encryptionKey,
+            name: name,
+            storeURL: storeURL,
+            appGroup: appGroup,
+            migrationPlan: migrationPlan
+        )
+    }
+
     /// A `ModelContainer` backed by one encrypted store.
     ///
     /// Equivalent to `ModelContainer(for: schema, configurations: CipherConfiguration(...))`.

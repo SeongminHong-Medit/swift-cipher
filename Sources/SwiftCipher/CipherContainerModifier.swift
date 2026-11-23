@@ -44,6 +44,18 @@ extension View {
         return modifier(CipherContainerModifier(configuration: configuration, failure: failure))
     }
 
+    /// Sets an encrypted model container holding `models` for this view.
+    /// If the store cannot be opened, a message is shown instead of the view.
+    public func cipherContainer(
+        for models: [any PersistentModel.Type],
+        encryptionKey: EncryptionKey? = nil,
+        name: String = "default",
+        storeURL: URL? = nil,
+        appGroup: String? = nil
+    ) -> some View {
+        cipherContainer(for: Schema(models), encryptionKey: encryptionKey, name: name, storeURL: storeURL, appGroup: appGroup)
+    }
+
     /// Sets an encrypted model container for this view, like `modelContainer(for:)`.
     /// If the store cannot be opened, a message is shown instead of the view.
     public func cipherContainer(

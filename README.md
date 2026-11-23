@@ -54,7 +54,7 @@ let schema = Schema([Note.self])
 let container = try ModelContainer(for: schema, configurations: [CipherConfiguration(schema: schema)])
 ```
 
-The store is written to `default.sqlite` in Application Support. Pass `name:` or `storeURL:` to `CipherConfiguration` to choose another file.
+The store is written to `default.store` in Application Support. Pass `name:` or `storeURL:` to `CipherConfiguration` to choose another file.
 
 `.cipherContainer` shows a message in place of the view if the store cannot be opened. Pass `failure:` to show your own view:
 
