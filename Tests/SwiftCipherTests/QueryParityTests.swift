@@ -178,7 +178,7 @@ extension QueryParityTests {
 struct TranslationCoverageTests {
 
     static let schema = Schema([Item.self, Author.self, Book.self, Genre.self])
-    static let tables = Dictionary(uniqueKeysWithValues: schema.entities.map { ($0.name, try! EntityTable($0, in: schema)) })
+    static var tables: [String: EntityTable] { try! SchemaMigrator.tables(of: schema) }
 
     static func translates<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) -> Bool {
         (try? SQLQueryBuilder(tables: tables).clauses(for: descriptor, entity: Schema.entityName(for: T.self))) != nil

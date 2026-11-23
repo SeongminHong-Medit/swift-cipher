@@ -47,6 +47,11 @@ extension Optional: OptionalProtocol { static var wrappedType: Any.Type? { Wrapp
 struct AttributeColumn {
     let name: String
     let kind: ColumnKind
+    /// The column's name in an earlier schema version, from `@Attribute(originalName:)`.
+    var originalName: String? = nil
+    var isOptional = true
+    /// Fills the column for existing rows when a non-optional property is added.
+    var defaultValue: Any? = nil
 }
 
 /// A to-many relationship the store must persist itself. To-many relationships whose
@@ -86,7 +91,15 @@ struct EntityTable {
         name = entity.name
         attributes = entity.attributes
             .sorted { $0.name < $1.name }
-            .map { AttributeColumn(name: $0.name, kind: ColumnKind(for: $0.valueType)) }
+            .map {
+                AttributeColumn(
+                    name: $0.name,
+                    kind: ColumnKind(for: $0.valueType),
+                    originalName: $0.originalName.isEmpty || $0.originalName == $0.name ? nil : $0.originalName,
+                    isOptional: $0.isOptional,
+                    defaultValue: $0.defaultValue
+                )
+            }
 
         var toOne: [String: String] = [:]
         var derived: [String: (String, String)] = [:]
@@ -111,6 +124,13 @@ struct EntityTable {
         self.joinTables = joins
         uniqueConstraints = entity.uniquenessConstraints
         indices = entity.indices
+    }
+
+    /// Identifies the layout, so a store can tell whether its tables match a schema.
+    var signature: String {
+        let columns = attributes.map { "\($0.name):\($0.kind.sqlType)" } + toOne.keys.sorted().map { "\($0)->\(toOne[$0]!)" }
+        let joins = joinTables.map(\.table)
+        return "\(name)(\(columns.joined(separator: ",")))[\(joins.joined(separator: ","))]u\(uniqueConstraints)i\(indices)"
     }
 
     var createStatements: [String] {

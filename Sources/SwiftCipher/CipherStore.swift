@@ -24,15 +24,18 @@ public final class CipherStore: DataStore {
         self.identifier = configuration.name
         self.codec = RowCodec(storeIdentifier: configuration.name)
 
-        var tables: [String: EntityTable] = [:]
-        for entity in schema.entities {
-            tables[entity.name] = try EntityTable(entity, in: schema)
-        }
+        let tables = try SchemaMigrator.tables(of: schema)
         self.tables = tables
 
         let url = try configuration.resolvedStoreURL()
         let storeExists = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0) > 0
         let key = try configuration.encryptionKey.resolved(createIfMissing: !storeExists)
+        if storeExists {
+            try SchemaMigrator.migrate(
+                url: url, key: key, schema: schema, configuration: configuration,
+                plan: migrationPlan ?? configuration.migrationPlan
+            )
+        }
         let connection = try Connection(.uri(url.path))
         try Self.unlock(connection, with: key)
         connection.busyTimeout = 5
@@ -43,6 +46,7 @@ public final class CipherStore: DataStore {
             for table in tables.values {
                 for sql in table.createStatements { try connection.execute(sql) }
             }
+            try SchemaMigrator.recordSignature(SchemaMigrator.signature(of: tables), in: connection)
         }
         self.db = connection
     }
