@@ -1,14 +1,6 @@
 import Foundation
 import SQLiteDB
 
-// MARK: - Data Helper
-
-private extension Data {
-    func hexEncodedString() -> String {
-        map { String(format: "%02x", $0) }.joined()
-    }
-}
-
 // MARK: - CipherMigration
 
 public enum CipherMigration {
@@ -19,7 +11,7 @@ public enum CipherMigration {
         fileAt url: URL,
         using encryptionKey: EncryptionKey
     ) throws {
-        try encryptionKey.validate()
+        let key = try encryptionKey.resolved(createIfMissing: true)
 
         let tempPath = url.path + ".cipher_tmp"
         let tempURL = URL(fileURLWithPath: tempPath)
@@ -38,15 +30,7 @@ public enum CipherMigration {
             try withExtendedLifetime(()) { _ in
                 let db = try Connection(.uri(url.path))
 
-                let attachSQL: String
-                switch encryptionKey {
-                case .passphrase(let s):
-                    let escaped = s.replacingOccurrences(of: "'", with: "''")
-                    attachSQL = "ATTACH DATABASE '\(tempPath)' AS encrypted KEY '\(escaped)'"
-                case .raw(let data):
-                    attachSQL = "ATTACH DATABASE '\(tempPath)' AS encrypted KEY \"x'\(data.hexEncodedString())'\""
-                }
-
+                let attachSQL = "ATTACH DATABASE \(sqlLiteral(tempPath)) AS encrypted \(key.attachClause)"
                 try db.execute(attachSQL)
                 try db.execute("SELECT sqlcipher_export('encrypted')")
                 try db.execute("DETACH DATABASE encrypted")

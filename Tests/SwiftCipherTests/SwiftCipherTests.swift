@@ -60,7 +60,7 @@ struct CipherContainerTests {
 @Suite("CipherStore encryption enforcement", .serialized)
 struct CipherStoreEncryptionTests {
 
-    @Test("opening an encrypted DB with wrong passphrase throws encryptionFailed")
+    @Test("opening an encrypted DB with wrong passphrase throws wrongKey")
     func wrongKeyRejected() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".sqlite")
@@ -87,7 +87,7 @@ struct CipherStoreEncryptionTests {
             encryptionKey: .passphrase("wrong"),
             storeURL: url
         )
-        #expect(throws: CipherError.encryptionFailed("invalid key")) {
+        #expect(throws: CipherError.wrongKey) {
             _ = try CipherStore(wrongConfig, migrationPlan: nil)
         }
     }
@@ -252,7 +252,7 @@ struct CipherStoreRekeyTests {
             encryptionKey: .passphrase("original"),
             storeURL: url
         )
-        #expect(throws: CipherError.encryptionFailed("invalid key")) {
+        #expect(throws: CipherError.wrongKey) {
             _ = try CipherStore(oldConfig, migrationPlan: nil)
         }
 
@@ -513,11 +513,10 @@ struct CipherBackupTests {
         try ctx.save()
 
         // Export to plaintext (no destination key).
-        try CipherBackup.export(
+        try CipherBackup.exportPlaintext(
             from: sourceURL,
             sourceKey: .passphrase("plain-export-key"),
-            to: destURL,
-            destinationKey: nil
+            to: destURL
         )
 
         // Open the plaintext export via a raw SQLiteDB.Connection (no key) and verify table exists.
@@ -530,7 +529,7 @@ struct CipherBackupTests {
     }
 
     // Test 5: wrong source key → throws CipherError.encryptionFailed
-    @Test("export with wrong source key throws encryptionFailed")
+    @Test("export with wrong source key throws wrongKey")
     func exportWrongSourceKeyThrows() throws {
         let sourceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".sqlite")
@@ -555,7 +554,7 @@ struct CipherBackupTests {
         try ctx.save()
 
         // Attempt export with an incorrect source key.
-        #expect(throws: CipherError.encryptionFailed("invalid source key")) {
+        #expect(throws: CipherError.wrongKey) {
             try CipherBackup.export(
                 from: sourceURL,
                 sourceKey: .passphrase("wrong-key"),

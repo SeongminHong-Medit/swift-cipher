@@ -1,105 +1,50 @@
 import Foundation
 import SQLiteDB
 
-// MARK: - Data Helper
-
-private extension Data {
-    func hexEncodedString() -> String {
-        map { String(format: "%02x", $0) }.joined()
-    }
-}
-
-// MARK: - CipherBackup
-
 public enum CipherBackup {
-    /// Exports an encrypted SQLite database to `destinationURL`.
-    ///
-    /// - Parameters:
-    ///   - sourceURL: Path to the source encrypted database.
-    ///   - sourceKey: Encryption key used to open the source.
-    ///   - destinationURL: Path for the exported copy (will be overwritten if it exists).
-    ///   - destinationKey: Key for the exported copy; `nil` exports as plaintext.
+    /// Copies an encrypted store to `destinationURL`, encrypted with `destinationKey`.
+    /// An existing file at `destinationURL` is replaced. Close containers on the source first.
     public static func export(
         from sourceURL: URL,
         sourceKey: EncryptionKey,
         to destinationURL: URL,
-        destinationKey: EncryptionKey? = nil
+        destinationKey: EncryptionKey
     ) throws {
-        // Validate keys before touching any files.
-        try sourceKey.validate()
-        try destinationKey?.validate()
+        try export(from: sourceURL, sourceKey: sourceKey, to: destinationURL, keyClause: destinationKey.resolved(createIfMissing: true).attachClause)
+    }
 
-        let destPath = destinationURL.path
+    /// Copies an encrypted store to `destinationURL` **without encryption**, for example
+    /// for debugging. Anyone with the file can read it.
+    public static func exportPlaintext(
+        from sourceURL: URL,
+        sourceKey: EncryptionKey,
+        to destinationURL: URL
+    ) throws {
+        // An empty key makes SQLCipher write a plain SQLite file.
+        try export(from: sourceURL, sourceKey: sourceKey, to: destinationURL, keyClause: "KEY ''")
+    }
 
-        // Track whether we created/modified the destination so we can clean up on error.
-        var destinationCreated = false
+    private static func export(from sourceURL: URL, sourceKey: EncryptionKey, to destinationURL: URL, keyClause: String) throws {
+        let source = try sourceKey.resolved()
+        let connection = try Connection(.uri(sourceURL.path))
+        try CipherStore.unlock(connection, with: source)
 
-        defer {
-            if destinationCreated && FileManager.default.fileExists(atPath: destPath) {
-                // Only clean up if we're unwinding due to an error; this defer runs
-                // after the do/catch below sets `destinationCreated` back to false on success.
-                try? FileManager.default.removeItem(at: destinationURL)
-            }
-        }
-
+        // Export next to the destination and swap it in only on success, so a failed
+        // export never destroys an earlier backup.
+        let temporary = destinationURL.deletingLastPathComponent()
+            .appendingPathComponent(".\(destinationURL.lastPathComponent).\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporary) }
         do {
-            try withExtendedLifetime(()) { _ in
-                // Open the source database.
-                let connection = try Connection(.uri(sourceURL.path))
-
-                // Apply the source key.
-                do {
-                    switch sourceKey {
-                    case .passphrase(let s):
-                        try connection.key(s)
-                    case .raw(let data):
-                        try connection.key(Blob(bytes: Array(data)))
-                    }
-                } catch {
-                    throw CipherError.encryptionFailed("invalid source key")
-                }
-
-                // Verify the source key is correct.
-                do {
-                    _ = try connection.scalar("SELECT count(*) FROM sqlite_master;")
-                } catch {
-                    throw CipherError.encryptionFailed("invalid source key")
-                }
-
-                // Remove existing destination file so ATTACH can create a fresh one.
-                if FileManager.default.fileExists(atPath: destPath) {
-                    try FileManager.default.removeItem(at: destinationURL)
-                }
-
-                // Mark that we are about to create the destination file.
-                destinationCreated = true
-
-                // Build the ATTACH SQL with the appropriate destination key.
-                let attachSQL: String
-                if let destKey = destinationKey {
-                    switch destKey {
-                    case .passphrase(let s):
-                        let escaped = s.replacingOccurrences(of: "'", with: "''")
-                        attachSQL = "ATTACH DATABASE '\(destPath)' AS backup KEY '\(escaped)'"
-                    case .raw(let data):
-                        attachSQL = "ATTACH DATABASE '\(destPath)' AS backup KEY \"x'\(data.hexEncodedString())'\""
-                    }
-                } else {
-                    // Empty key string = plaintext export in SQLCipher.
-                    attachSQL = "ATTACH DATABASE '\(destPath)' AS backup KEY ''"
-                }
-
-                try connection.execute(attachSQL)
-                try connection.execute("SELECT sqlcipher_export('backup')")
-                try connection.execute("DETACH DATABASE backup")
-            }
-
-            // Export succeeded — do not clean up the destination.
-            destinationCreated = false
-        } catch let cipherErr as CipherError {
-            throw cipherErr
+            try connection.execute("ATTACH DATABASE \(sqlLiteral(temporary.path)) AS backup \(keyClause)")
+            try connection.execute("SELECT sqlcipher_export('backup')")
+            try connection.execute("DETACH DATABASE backup")
         } catch {
             throw CipherError.encryptionFailed("SQLCipher export failed: \(error)")
+        }
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            _ = try FileManager.default.replaceItemAt(destinationURL, withItemAt: temporary)
+        } else {
+            try FileManager.default.moveItem(at: temporary, to: destinationURL)
         }
     }
 }

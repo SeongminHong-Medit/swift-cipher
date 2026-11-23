@@ -31,8 +31,10 @@ public final class CipherStore: DataStore {
         self.tables = tables
 
         let url = try configuration.resolvedStoreURL()
+        let storeExists = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0) > 0
+        let key = try configuration.encryptionKey.resolved(createIfMissing: !storeExists)
         let connection = try Connection(.uri(url.path))
-        try Self.unlock(connection, with: configuration.encryptionKey)
+        try Self.unlock(connection, with: key)
         connection.busyTimeout = 5
         try connection.execute("PRAGMA journal_mode = WAL")
         try connection.registerSwiftStringFunctions()
@@ -44,15 +46,13 @@ public final class CipherStore: DataStore {
         self.db = connection
     }
 
-    static func unlock(_ connection: Connection, with key: EncryptionKey) throws {
+    /// Applies the key and checks it by reading the schema; SQLCipher only fails on first read.
+    static func unlock(_ connection: Connection, with key: ResolvedKey) throws {
         do {
-            switch key {
-            case .passphrase(let s): try connection.key(s)
-            case .raw(let data): try connection.key(Blob(bytes: Array(data)))
-            }
+            try key.unlock(connection)
             _ = try connection.scalar("SELECT count(*) FROM sqlite_master")
         } catch {
-            throw CipherError.encryptionFailed("invalid key")
+            throw CipherError.wrongKey
         }
     }
 
@@ -269,14 +269,13 @@ public final class CipherStore: DataStore {
 
     // MARK: - Maintenance
 
+    /// Re-encrypts the store with `newKey`. Later opens must use `newKey`.
+    /// A `.keychain` key that does not exist yet is created.
     public func rekey(to newKey: EncryptionKey) throws {
-        try newKey.validate()
+        let key = try newKey.resolved(createIfMissing: true)
         try lock.withLock {
             do {
-                switch newKey {
-                case .passphrase(let s): try db.rekey(s)
-                case .raw(let data): try db.rekey(Blob(bytes: Array(data)))
-                }
+                try key.rekey(db)
             } catch {
                 throw CipherError.encryptionFailed("rekey failed: \(error)")
             }
