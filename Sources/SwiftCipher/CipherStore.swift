@@ -39,6 +39,7 @@ public final class CipherStore: DataStore {
         try connection.execute("PRAGMA journal_mode = WAL")
         try connection.registerSwiftStringFunctions()
         try connection.transaction(.immediate) {
+            try connection.execute("CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY NOT NULL, value TEXT)")
             for table in tables.values {
                 for sql in table.createStatements { try connection.execute(sql) }
             }
@@ -264,6 +265,35 @@ public final class CipherStore: DataStore {
             for join in other.joinTables where join.destination == table.name {
                 try db.run("DELETE FROM \(q(join.table)) WHERE target = ?", key)
             }
+        }
+    }
+
+    // MARK: - Import
+
+    /// Writes rows copied from another store in one transaction and records `marker`.
+    /// Returns `false` without writing when `marker` is already recorded. Rolls back unless
+    /// every entity ends up with exactly its imported rows added.
+    func importRows(_ rows: [(entity: String, key: String, object: [String: Any])], marker: String) throws -> Bool {
+        try lock.withLock {
+            if try db.scalar("SELECT 1 FROM _meta WHERE key = ?", marker) != nil { return false }
+            try db.transaction(.immediate) {
+                var expected: [String: Int] = [:]
+                for table in tables.values {
+                    expected[table.name] = Int(try db.scalar("SELECT count(*) FROM \(q(table.name))") as? Int64 ?? 0)
+                }
+                for row in rows {
+                    try write(row.object, key: row.key, to: layout(row.entity), keyMap: [:])
+                    expected[row.entity, default: 0] += 1
+                }
+                for (entity, count) in expected {
+                    let actual = Int(try db.scalar("SELECT count(*) FROM \(q(entity))") as? Int64 ?? 0)
+                    guard actual == count else {
+                        throw CipherError.migrationFailed("\(entity) has \(actual) rows after import, expected \(count)")
+                    }
+                }
+                try db.run("INSERT INTO _meta (key, value) VALUES (?, ?)", marker, ISO8601DateFormatter().string(from: Date()))
+            }
+            return true
         }
     }
 

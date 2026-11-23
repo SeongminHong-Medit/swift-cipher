@@ -177,19 +177,26 @@ enum PropertyNames {
 
     static func name(of keyPath: AnyKeyPath) -> String? {
         guard let model = type(of: keyPath).rootType as? any PersistentModel.Type else { return nil }
-        return lock.withLock {
+        return names(of: model)[keyPath]
+    }
+
+    static func keyPaths(of model: any PersistentModel.Type) -> [AnyKeyPath] {
+        Array(names(of: model).keys)
+    }
+
+    private static func names(of model: any PersistentModel.Type) -> [AnyKeyPath: String] {
+        lock.withLock {
             let id = ObjectIdentifier(model)
-            if cache[id] == nil {
-                var names: [AnyKeyPath: String] = [:]
-                for metadata in model.schemaMetadata {
-                    let mirror = Mirror(reflecting: metadata)
-                    let name = mirror.children.first { $0.label == "name" }?.value as? String
-                    let path = mirror.children.first { $0.label == "keypath" }?.value as? AnyKeyPath
-                    if let name, let path { names[path] = name }
-                }
-                cache[id] = names
+            if let names = cache[id] { return names }
+            var names: [AnyKeyPath: String] = [:]
+            for metadata in model.schemaMetadata {
+                let mirror = Mirror(reflecting: metadata)
+                let name = mirror.children.first { $0.label == "name" }?.value as? String
+                let path = mirror.children.first { $0.label == "keypath" }?.value as? AnyKeyPath
+                if let name, let path { names[path] = name }
             }
-            return cache[id]?[keyPath]
+            cache[id] = names
+            return names
         }
     }
 }
