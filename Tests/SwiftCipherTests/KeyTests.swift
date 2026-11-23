@@ -84,3 +84,18 @@ struct KeyTests {
         #expect(CipherError.keychainError(errSecInteractionNotAllowed).localizedDescription.contains("locked"))
     }
 }
+
+@Suite("README usage")
+struct ReadmeUsageTests {
+    @Test("a configuration without a schema takes the container's schema")
+    func configurationWithoutSchema() throws {
+        let store = try TempStore(.cipher, [Item.self])
+        let name = "test.\(UUID().uuidString)"
+        defer { store.destroy(); try? CipherKeychain.deleteKey(account: name) }
+        let container = try ModelContainer(for: Schema([Item.self]), configurations: [CipherConfiguration(name: name, storeURL: store.url)])
+        let context = ModelContext(container)
+        context.insert(Item(title: "x"))
+        try context.save()
+        #expect(try ModelContext(container).fetchCount(FetchDescriptor<Item>()) == 1)
+    }
+}

@@ -11,7 +11,6 @@
 		C82465341E636D99275F4CD9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F0F4F28B6F545FF03F50D23 /* ContentView.swift */; };
 		D99FF60E18F8B8C25DBCAAA1 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AFB4AD30E2B6A8A644C8734 /* Note.swift */; };
 		DE587413C728AA0F1408DE1A /* SwiftCipherExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C90A41058F526FD57D41AB /* SwiftCipherExampleApp.swift */; };
-		E1BD0B621CF746BA9A8B5DFD /* KeychainSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA699A0DF9761E6BA6F3B37D /* KeychainSetupView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,8 +19,7 @@
 		5F0F4F28B6F545FF03F50D23 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		81C90A41058F526FD57D41AB /* SwiftCipherExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftCipherExampleApp.swift; sourceTree = "<group>"; };
 		AF82FB7B454F68F36F995645 /* swift-cipher */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-cipher"; path = ../..; sourceTree = SOURCE_ROOT; };
-		DA5303C4C7F836E5034798EA /* SwiftCipherExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftCipherExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FA699A0DF9761E6BA6F3B37D /* KeychainSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSetupView.swift; sourceTree = "<group>"; };
+		DA5303C4C7F836E5034798EA /* SwiftCipherExample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SwiftCipherExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,7 +47,6 @@
 			children = (
 				5F0F4F28B6F545FF03F50D23 /* ContentView.swift */,
 				378DE2C51F17420F7AF211A2 /* Info.plist */,
-				FA699A0DF9761E6BA6F3B37D /* KeychainSetupView.swift */,
 				2AFB4AD30E2B6A8A644C8734 /* Note.swift */,
 				81C90A41058F526FD57D41AB /* SwiftCipherExampleApp.swift */,
 			);
@@ -103,6 +100,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = B03DF3ED65C4DA8C3A91DE14 /* Build configuration list for PBXProject "SwiftCipherExample" */;
 			developmentRegion = en;
@@ -132,7 +131,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				C82465341E636D99275F4CD9 /* ContentView.swift in Sources */,
-				E1BD0B621CF746BA9A8B5DFD /* KeychainSetupView.swift in Sources */,
 				D99FF60E18F8B8C25DBCAAA1 /* Note.swift in Sources */,
 				DE587413C728AA0F1408DE1A /* SwiftCipherExampleApp.swift in Sources */,
 			);
@@ -146,7 +144,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = LVBMDY357W;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -285,7 +282,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = LVBMDY357W;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -333,7 +329,6 @@
 /* Begin XCSwiftPackageProductDependency section */
 		FD5708977E40E6E44A3F7651 /* SwiftCipher */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2187D394AFBDC70559931208 /* XCLocalSwiftPackageReference "../.." */;
 			productName = SwiftCipher;
 		};
 /* End XCSwiftPackageProductDependency section */
