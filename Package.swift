@@ -23,7 +23,8 @@ let package = Package(
         .target(
             name: "SwiftCipher",
             dependencies: [
-                .product(name: "SQLiteDB", package: "swift-sqlcipher")
+                .product(name: "SQLiteDB", package: "swift-sqlcipher"),
+                .product(name: "SQLCipher", package: "swift-sqlcipher")
             ],
             path: "Sources/SwiftCipher",
             swiftSettings: [

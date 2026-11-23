@@ -35,6 +35,7 @@ public final class CipherStore: DataStore {
         try Self.unlock(connection, with: configuration.encryptionKey)
         connection.busyTimeout = 5
         try connection.execute("PRAGMA journal_mode = WAL")
+        try connection.registerSwiftStringFunctions()
         try connection.transaction(.immediate) {
             for table in tables.values {
                 for sql in table.createStatements { try connection.execute(sql) }
@@ -66,47 +67,70 @@ public final class CipherStore: DataStore {
 
     public func fetch<T: PersistentModel>(_ request: DataStoreFetchRequest<T>) throws -> DataStoreFetchResult<T, DefaultSnapshot> {
         let table = try layout(Schema.entityName(for: T.self))
-        let tail = try queryTail(request.descriptor)
         let snapshots = try lock.withLock {
-            try readRows(of: table, tail: tail)
+            let query = try plan(request.descriptor, table: table, fallback: true)
+            return try readRows(of: table, query: query)
         }
         return DataStoreFetchResult(descriptor: request.descriptor, fetchedSnapshots: snapshots)
     }
 
     public func fetchCount<T: PersistentModel>(_ request: DataStoreFetchRequest<T>) throws -> Int {
         let table = try layout(Schema.entityName(for: T.self))
-        let tail = try queryTail(request.descriptor)
+        var descriptor = request.descriptor
+        descriptor.sortBy = []
         return try lock.withLock {
-            let count = try db.scalar("SELECT count(*) FROM (SELECT 1 FROM \(q(table.name))\(tail))") as? Int64
+            let query = try plan(descriptor, table: table, fallback: false)
+            let sql = "SELECT count(*) FROM (SELECT 1 " + query + ")"
+            let count = try db.scalar(sql.text, sql.bindings) as? Int64
             return Int(count ?? 0)
         }
     }
 
     public func fetchIdentifiers<T: PersistentModel>(_ request: DataStoreFetchRequest<T>) throws -> [PersistentIdentifier] {
         let table = try layout(Schema.entityName(for: T.self))
-        let tail = try queryTail(request.descriptor)
         return try lock.withLock {
-            try db.prepare("SELECT \(q(EntityTable.primaryKey)) FROM \(q(table.name))\(tail)").map { row in
+            let query = try plan(request.descriptor, table: table, fallback: false)
+            return try db.prepare("SELECT t0.\(q(EntityTable.primaryKey)) " + query.text, query.bindings).map { row in
                 try codec.identifier(entity: table.name, primaryKey: row[0] as! String)
             }
         }
     }
 
-    /// ORDER BY / LIMIT / OFFSET for a descriptor. Predicates and sorts are handed back to
-    /// SwiftData to evaluate in memory until the SQL translator supports them.
-    private func queryTail<T>(_ descriptor: FetchDescriptor<T>) throws -> String {
-        if descriptor.predicate != nil { throw DataStoreError.preferInMemoryFilter }
-        if !descriptor.sortBy.isEmpty { throw DataStoreError.preferInMemorySort }
-        var sql = " ORDER BY rowid"
-        if let limit = descriptor.fetchLimit { sql += " LIMIT \(limit)" }
-        if let offset = descriptor.fetchOffset { sql += (descriptor.fetchLimit == nil ? " LIMIT -1" : "") + " OFFSET \(offset)" }
-        return sql
+    /// `FROM … WHERE … ORDER BY … LIMIT …` for a descriptor, root table aliased `t0`.
+    ///
+    /// When part of it has no SQL equivalent and `fallback` is true, throws
+    /// `preferInMemoryFilter`/`preferInMemorySort` so SwiftData evaluates that part.
+    /// SwiftData does not apply `fetchLimit`/`fetchOffset` after such a fallback, and
+    /// cannot fall back for counts or identifiers, so those cases throw `unsupportedQuery`.
+    private func plan<T>(_ descriptor: FetchDescriptor<T>, table: EntityTable, fallback: Bool) throws -> SQL {
+        do {
+            let (from, whereSQL, order) = try SQLQueryBuilder(tables: tables).clauses(for: descriptor, entity: table.name)
+            var sql = "FROM " + from + whereSQL + order
+            if let limit = descriptor.fetchLimit { sql = sql + " LIMIT \(limit)" }
+            if let offset = descriptor.fetchOffset { sql = sql + (descriptor.fetchLimit == nil ? " LIMIT -1" : "") + " OFFSET \(offset)" }
+            return sql
+        } catch let error as Untranslatable {
+            guard fallback, descriptor.fetchLimit == nil, (descriptor.fetchOffset ?? 0) == 0 else {
+                throw CipherError.unsupportedQuery("""
+                    \(error.reason) cannot run in SQL, and SwiftData cannot evaluate it in memory for this fetch \
+                    (fetchLimit, fetchOffset, fetchCount or fetchIdentifiers). Simplify the predicate or sort, or drop the limit.
+                    """)
+            }
+            var unsorted = descriptor
+            unsorted.sortBy = []
+            if descriptor.predicate != nil, (try? SQLQueryBuilder(tables: tables).clauses(for: unsorted, entity: table.name)) == nil {
+                throw DataStoreError.preferInMemoryFilter
+            }
+            throw DataStoreError.preferInMemorySort
+        }
     }
 
-    private func readRows(of table: EntityTable, tail: String) throws -> [DefaultSnapshot] {
+    private func readRows(of table: EntityTable, query: SQL) throws -> [DefaultSnapshot] {
         let toOne = table.toOne.keys.sorted()
         let columns = [EntityTable.primaryKey] + table.attributes.map(\.name) + toOne
-        let statement = try db.prepare("SELECT \(columns.map(q).joined(separator: ", ")) FROM \(q(table.name))\(tail)")
+        let statement = try db.prepare(
+            "SELECT " + columns.map { "t0." + q($0) }.joined(separator: ", ") + " " + query.text, query.bindings
+        )
 
         var snapshots: [DefaultSnapshot] = []
         for row in statement {

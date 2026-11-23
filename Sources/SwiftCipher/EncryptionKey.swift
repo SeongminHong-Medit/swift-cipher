@@ -9,6 +9,10 @@ public enum CipherError: Error, Sendable, Equatable {
     case unsupportedSchema(String)
     /// The store file holds data the store cannot interpret.
     case storeCorrupted(String)
+    /// The fetch needs a predicate or sort the store cannot run in SQL, combined with
+    /// `fetchLimit`/`fetchOffset`, `fetchCount` or `fetchIdentifiers`, where SwiftData
+    /// cannot evaluate it in memory instead. The message names the unsupported part.
+    case unsupportedQuery(String)
 }
 
 public enum EncryptionKey: Sendable {
