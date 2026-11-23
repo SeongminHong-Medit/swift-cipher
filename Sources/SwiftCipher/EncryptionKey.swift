@@ -5,6 +5,10 @@ public enum CipherError: Error, Sendable, Equatable {
     case encryptionFailed(String)
     case migrationFailed(String)
     case keychainError(OSStatus)
+    /// The schema uses a feature the cipher store cannot persist. The message names the model and property.
+    case unsupportedSchema(String)
+    /// The store file holds data the store cannot interpret.
+    case storeCorrupted(String)
 }
 
 public enum EncryptionKey: Sendable {

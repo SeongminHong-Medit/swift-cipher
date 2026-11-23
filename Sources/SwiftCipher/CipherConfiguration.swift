@@ -21,6 +21,15 @@ public struct CipherConfiguration: DataStoreConfiguration {
         self.storeURL = storeURL
     }
 
+    /// `storeURL`, or `<name>.sqlite` in Application Support.
+    func resolvedStoreURL() throws -> URL {
+        if let storeURL { return storeURL }
+        let directory = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        )
+        return directory.appendingPathComponent("\(name).sqlite")
+    }
+
     public func validate() throws {
         try encryptionKey.validate()
     }
