@@ -4,3 +4,4 @@
 !Examples/**/*.xcodeproj
 *.xcworkspace
 DerivedData/
+xcuserdata/
